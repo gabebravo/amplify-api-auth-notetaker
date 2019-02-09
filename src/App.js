@@ -7,15 +7,16 @@ export default function App() {
 
   const [state, setState] = useState({
     note: '',
-    notes: [
-    ]
+    notes: []
   })
 
-  function handleChange(ev){
+  async function handleChange(ev){
     ev.preventDefault()
-    API.graphql(graphqlOperation(createNote, { 
+    const res = await API.graphql(graphqlOperation(createNote, { 
       input: { note: state.note }
     }))
+    const newNote = res.data.createNote;
+    setState({ note: '', notes: [...state.notes, newNote ] })
   }
 
   return (
@@ -26,12 +27,12 @@ export default function App() {
         <button type="submit" className="pa2 f4">Add Note</button>
       </form>
       <div>
-        {/* { this.state.notes.map( item => 
+        { state.notes.map( item => 
           <div key={item.id} className="flex items-center">
             <li className="list pa1t f3">{`${item.note}`}</li>
             <button className="bg-transparent bn f4"><span>&times;</span></button>
           </div>
-        )} */}
+        )}
       </div>
     </div>
   );
