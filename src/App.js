@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { withAuthenticator } from 'aws-amplify-react';
 import { API, graphqlOperation } from 'aws-amplify';
 import { createNote } from './graphql/mutations';
+import { listNotes } from './graphql/queries';
 
 export default function App() {
 
@@ -9,6 +10,11 @@ export default function App() {
     note: '',
     notes: []
   })
+
+  useEffect( async () => { // mimics componentDidMount
+    const res = await API.graphql(graphqlOperation(listNotes))
+    setState({ ...state, notes: res.data.listNotes.items })
+  }, [])
 
   async function handleChange(ev){
     ev.preventDefault()
