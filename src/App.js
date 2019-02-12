@@ -11,9 +11,13 @@ export default function App() {
     notes: []
   })
 
-  useEffect( async () => { // mimics componentDidMount
+  async function fetchNotes() {
     const res = await API.graphql(graphqlOperation(listNotes))
     setState({ ...state, notes: res.data.listNotes.items })
+  }
+
+  useEffect( () => {
+    fetchNotes();
   }, [])
 
   async function handleChange(ev){
