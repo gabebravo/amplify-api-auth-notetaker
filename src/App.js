@@ -30,8 +30,8 @@ export default function App() {
       }))
       const newNote = res.data.updateNote;
       const index = _.findIndex([...state.notes], { id: newNote.id });
-      state.notes.splice(index, 1, newNote);
-      setState({ ...state, id: '', note: '' })
+      const updatedNotes = [ ...state.notes.slice(0, index), newNote, ...state.notes.slice(index + 1)]
+      setState({ id: '', note: '', notes: updatedNotes })
     } else {
       const res = await API.graphql(graphqlOperation(createNote, { 
         input: { note: state.note }
