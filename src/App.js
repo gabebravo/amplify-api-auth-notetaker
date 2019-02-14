@@ -3,6 +3,7 @@ import { withAuthenticator } from 'aws-amplify-react';
 import { API, graphqlOperation } from 'aws-amplify';
 import { createNote, deleteNote, updateNote } from './graphql/mutations';
 import { listNotes } from './graphql/queries';
+import { onCreateNote } from './graphql/subscriptions';
 import _ from 'lodash';
 
 export default function App() {
@@ -15,12 +16,25 @@ export default function App() {
 
   async function fetchNotes() {
     const res = await API.graphql(graphqlOperation(listNotes))
-    setState({ ...state, notes: res.data.listNotes.items })
+    await setState({ ...state, notes: res.data.listNotes.items })
   }
 
   useEffect( () => {
-    fetchNotes();
-  }, [])
+    fetchNotes(); // THIS WILL LOAD INITIAL NOTES
+    const createNoteListener = API.graphql(graphqlOperation(onCreateNote)).subscribe({
+      next: noteData => { // THIS WILL FIRE ON EACH CREATE NOTE
+        const newNote = noteData.value.data.onCreateNote;
+        setState( prevState => { // IMP : THIS IS HOW TO ACCESS PREV STATE FOR AN UPDATE
+          const prevNotes = [...prevState.notes].filter( note => note.id !== newNote.id );
+          const updatedNotes = [...prevNotes, newNote]; 
+          return { ...prevState, notes: updatedNotes }
+        })
+      }
+    })
+    return () => {
+      createNoteListener.unsubscribe();
+    }
+  }, []) // MIMICS CDM
 
   async function handleSubmit(ev){
     ev.preventDefault();
@@ -33,11 +47,16 @@ export default function App() {
       const updatedNotes = [ ...state.notes.slice(0, index), newNote, ...state.notes.slice(index + 1)]
       setState({ id: '', note: '', notes: updatedNotes })
     } else {
-      const res = await API.graphql(graphqlOperation(createNote, { 
+      await API.graphql(graphqlOperation(createNote, { 
         input: { note: state.note }
       }))
-      const newNote = res.data.createNote;
-      setState({ note: '', notes: [...state.notes, newNote ] })
+      // __NO NEED TO SPREAD IN THE NEW NOTE TO UPDATE THE UI ON CREATE >> LINE 29 REALTIME
+        // const res = await API.graphql(graphqlOperation(createNote, { 
+        //   input: { note: state.note }
+        // }))
+        // const newNote = res.data.createNote;
+        // setState({ note: '', notes: [...state.notes, newNote ] })
+      setState({ ...state, note: '' })
     }
   }
 
@@ -47,7 +66,7 @@ export default function App() {
     }))
     const deletedNoteId = res.data.deleteNote.id;
     const newNotes = [...state.notes].filter( note => note.id !== deletedNoteId ) ;
-    setState({ note: '', notes: newNotes })
+    setState({ ...state, note: '', notes: newNotes })
   }
 
   return (
@@ -58,12 +77,12 @@ export default function App() {
         <button type="submit" className="pa2 f4">{state.id ? 'Update Note' : 'Add Note' }</button>
       </form>
       <div>
-        { state.notes.map( item => 
+        { state.notes ? state.notes.map( item => 
           <div key={item.id} className="flex items-center">
             <li onClick={() => setState({ ...state, note: item.note, id: item.id })} className="list pa1t f3">{`${item.note}`}</li>
             <button className="bg-transparent bn f4" onClick={() => handleDelete(item.id)}><span>&times;</span></button>
           </div>
-        )}
+        ): null}
       </div>
     </div>
   );
