@@ -6,7 +6,7 @@ import { listNotes } from './graphql/queries';
 import { onCreateNote, onDeleteNote, onUpdateNote } from './graphql/subscriptions';
 import _ from 'lodash';
 
-export default function App() {
+function App() {
 
   const [state, setState] = useState({
     id: '',
@@ -108,4 +108,4 @@ export default function App() {
   );
 }
 
-withAuthenticator(App, { includeGreetings:  true });
+export default withAuthenticator(App, { includeGreetings:  true });
