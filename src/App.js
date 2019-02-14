@@ -3,7 +3,7 @@ import { withAuthenticator } from 'aws-amplify-react';
 import { API, graphqlOperation } from 'aws-amplify';
 import { createNote, deleteNote, updateNote } from './graphql/mutations';
 import { listNotes } from './graphql/queries';
-import { onCreateNote } from './graphql/subscriptions';
+import { onCreateNote, onDeleteNote } from './graphql/subscriptions';
 import _ from 'lodash';
 
 export default function App() {
@@ -21,9 +21,11 @@ export default function App() {
 
   useEffect( () => {
     fetchNotes(); // THIS WILL LOAD INITIAL NOTES
+
+    // THIS WILL SUBSCRIBE TO ONCREATE
     const createNoteListener = API.graphql(graphqlOperation(onCreateNote)).subscribe({
       next: noteData => { // THIS WILL FIRE ON EACH CREATE NOTE
-        const newNote = noteData.value.data.onCreateNote;
+        const newNote = noteData.value.data.onCreateNote; // NOTE RETURNED
         setState( prevState => { // IMP : THIS IS HOW TO ACCESS PREV STATE FOR AN UPDATE
           const prevNotes = [...prevState.notes].filter( note => note.id !== newNote.id );
           const updatedNotes = [...prevNotes, newNote]; 
@@ -31,11 +33,25 @@ export default function App() {
         })
       }
     })
-    return () => {
+
+    // THIS WILL SUBSCRIBE TO ONDELETE
+    const deleteNoteListener = API.graphql(graphqlOperation(onDeleteNote)).subscribe({
+      next: noteData => {
+        const deletedNote = noteData.value.data.onDeleteNote;
+        setState( prevState => {
+          const prevNotes = [...prevState.notes].filter( note => note.id !== deletedNote.id ); 
+          return { ...prevState, notes: prevNotes }
+        })
+      }
+    })
+
+    return () => { // MIMICS CWU - DOES CLEANUP
       createNoteListener.unsubscribe();
+      deleteNoteListener.unsubscribe();
     }
   }, []) // MIMICS CDM
 
+  // IF THERE IS AN ID : CALLS UPDATE >> ELSE : CALLS CREATE
   async function handleSubmit(ev){
     ev.preventDefault();
     if( state.id ) {
@@ -50,23 +66,17 @@ export default function App() {
       await API.graphql(graphqlOperation(createNote, { 
         input: { note: state.note }
       }))
-      // __NO NEED TO SPREAD IN THE NEW NOTE TO UPDATE THE UI ON CREATE >> LINE 29 REALTIME
-        // const res = await API.graphql(graphqlOperation(createNote, { 
-        //   input: { note: state.note }
-        // }))
-        // const newNote = res.data.createNote;
-        // setState({ note: '', notes: [...state.notes, newNote ] })
+      // __NO NEED TO SPREAD IN THE NEW NOTE TO UPDATE THE UI ON CREATE >> LINE 29 REALTIME DOES THIS
       setState({ ...state, note: '' })
     }
   }
 
+  // JUST CALLS THE API AND RESETS STATE
   async function handleDelete(noteId){
-    const res = await API.graphql(graphqlOperation(deleteNote, { 
+    await API.graphql(graphqlOperation(deleteNote, { 
       input: { id: noteId }
     }))
-    const deletedNoteId = res.data.deleteNote.id;
-    const newNotes = [...state.notes].filter( note => note.id !== deletedNoteId ) ;
-    setState({ ...state, note: '', notes: newNotes })
+    setState({ ...state, note: '' })
   }
 
   return (
