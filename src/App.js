@@ -3,7 +3,7 @@ import { withAuthenticator } from 'aws-amplify-react';
 import { API, graphqlOperation } from 'aws-amplify';
 import { createNote, deleteNote, updateNote } from './graphql/mutations';
 import { listNotes } from './graphql/queries';
-import { onCreateNote, onDeleteNote } from './graphql/subscriptions';
+import { onCreateNote, onDeleteNote, onUpdateNote } from './graphql/subscriptions';
 import _ from 'lodash';
 
 export default function App() {
@@ -45,30 +45,40 @@ export default function App() {
       }
     })
 
+    // THIS WILL SUBSCRIBE TO ONUPDATE
+    const updateNoteListener = API.graphql(graphqlOperation(onUpdateNote)).subscribe({
+      next: noteData => {
+        const updatedNote = noteData.value.data.onUpdateNote;
+        setState( prevState => { // ALGORITHM BELOW SWAPS THE NOTE AT THE EXACT PREVIOUS INDEX
+          const index = _.findIndex([...prevState.notes], { id: updatedNote.id });
+          const updatedNotes = [ ...prevState.notes.slice(0, index), updatedNote, ...prevState.notes.slice(index + 1)]
+          return { ...prevState, notes: updatedNotes  }
+        })
+      }
+    })
+
     return () => { // MIMICS CWU - DOES CLEANUP
       createNoteListener.unsubscribe();
       deleteNoteListener.unsubscribe();
+      updateNoteListener.unsubscribe();
     }
   }, []) // MIMICS CDM
 
-  // IF THERE IS AN ID : CALLS UPDATE >> ELSE : CALLS CREATE
   async function handleSubmit(ev){
     ev.preventDefault();
+    // IF THERE IS AN ID : CALLS UPDATE >> ELSE : CALLS CREATE
     if( state.id ) {
-      const res = await API.graphql(graphqlOperation(updateNote, { 
+      await API.graphql(graphqlOperation(updateNote, { 
         input: { id: state.id, note: state.note }
       }))
-      const newNote = res.data.updateNote;
-      const index = _.findIndex([...state.notes], { id: newNote.id });
-      const updatedNotes = [ ...state.notes.slice(0, index), newNote, ...state.notes.slice(index + 1)]
-      setState({ id: '', note: '', notes: updatedNotes })
+      setState({ ...state, id: '', note: '' })
     } else {
       await API.graphql(graphqlOperation(createNote, { 
         input: { note: state.note }
       }))
-      // __NO NEED TO SPREAD IN THE NEW NOTE TO UPDATE THE UI ON CREATE >> LINE 29 REALTIME DOES THIS
       setState({ ...state, note: '' })
     }
+  // __NO NEED TO SPREAD IN THE NEW NOTE INSTANCE ON UPDATE/CREATE >> REALTIME DOES THIS
   }
 
   // JUST CALLS THE API AND RESETS STATE
