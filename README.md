@@ -66,11 +66,12 @@ Selected default editor not found in your machine. Please manually edit the file
 
 THIS IS WHAT WILL COME OUT IN THE SCHEMA.GQL FILE : 
 
-type Todo @model {
+type Note @model @auth(rules: [{ allow: owner }]) {
   id: ID!
-  name: String!
-  description: String
+  note: String!
 }
+
+#### `Note the @auth(rules: [{ allow: owner }]) part which is used for data owndership`
 
 — WE COMPLETE THE PROCESS IN THE NEXT SECTION
 
@@ -198,3 +199,4 @@ import aws_exports from './aws-exports'
 Amplify.configure(aws_exports);
 
 THAT ’S IT WE ARE DONE!!!
+
